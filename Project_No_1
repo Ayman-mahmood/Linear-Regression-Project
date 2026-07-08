@@ -1,0 +1,125 @@
+import re
+import streamlit as st
+
+st.set_page_config(page_title="Disease Predictor", page_icon="🩺", layout="centered")
+
+st.title("🩺 Disease Prediction App")
+st.write("Select symptoms to get a simple health-risk suggestion. This is for educational use only and is not a medical diagnosis.")
+
+SYMPTOM_OPTIONS = [
+    "fever",
+    "cough",
+    "sore throat",
+    "runny nose",
+    "headache",
+    "fatigue",
+    "body aches",
+    "chills",
+    "shortness of breath",
+    "chest pain",
+    "rash",
+    "nausea",
+    "vomiting",
+    "diarrhea",
+    "joint pain",
+    "swollen glands",
+    "itchy eyes",
+    "sneezing",
+    "wheezing",
+]
+
+SYMPTOM_ALIASES = {
+    "fever": ["fever", "high temperature", "temperature"],
+    "cough": ["cough", "coughing"],
+    "sore throat": ["sore throat", "throat pain"],
+    "runny nose": ["runny nose", "stuffy nose", "nasal congestion"],
+    "headache": ["headache", "head ache"],
+    "fatigue": ["fatigue", "tiredness", "tired"],
+    "body aches": ["body aches", "body pain", "muscle pain"],
+    "chills": ["chills", "shivering"],
+    "shortness of breath": ["shortness of breath", "breathlessness", "difficulty breathing"],
+    "chest pain": ["chest pain", "chest tightness"],
+    "rash": ["rash", "skin rash"],
+    "nausea": ["nausea", "queasy"],
+    "vomiting": ["vomiting", "throwing up"],
+    "diarrhea": ["diarrhea", "loose stools"],
+    "joint pain": ["joint pain", "joint ache"],
+    "swollen glands": ["swollen glands", "swollen neck glands"],
+    "itchy eyes": ["itchy eyes", "itchy eyes"],
+    "sneezing": ["sneezing", "sneeze"],
+    "wheezing": ["wheezing", "wheeze"],
+}
+
+DISEASE_RULES = [
+    ("Influenza (Flu)", ["fever", "cough", "fatigue", "body aches", "chills", "headache"]),
+    ("Common Cold", ["runny nose", "sore throat", "cough", "fatigue"]),
+    ("COVID-19", ["fever", "cough", "fatigue", "shortness of breath", "body aches"]),
+    ("Allergy", ["sneezing", "runny nose", "itchy eyes", "rash"]),
+    ("Malaria", ["fever", "chills", "headache", "body aches", "fatigue"]),
+    ("Strep Throat", ["sore throat", "fever", "swollen glands", "headache"]),
+    ("Food Poisoning", ["nausea", "vomiting", "diarrhea", "stomach pain"]),
+    ("Chickenpox", ["fever", "rash", "fatigue", "body aches"]),
+    ("Asthma", ["shortness of breath", "wheezing", "cough", "chest pain"]),
+]
+
+
+def normalize(text: str) -> str:
+    cleaned = text.lower().strip()
+    cleaned = re.sub(r"[^a-z0-9\s]", " ", cleaned)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def extract_symptoms(selected, free_text):
+    symptoms = []
+    for symptom in selected:
+        symptoms.append(normalize(symptom))
+
+    if free_text:
+        tokens = normalize(free_text).split()
+        for token in tokens:
+            for symptom, aliases in SYMPTOM_ALIASES.items():
+                if token in aliases or any(alias.startswith(token) for alias in aliases):
+                    if symptom not in symptoms:
+                        symptoms.append(symptom)
+                    break
+
+    return list(dict.fromkeys(symptoms))
+
+
+def predict_disease(symptoms):
+    if not symptoms:
+        return None, "Please select or describe at least one symptom."
+
+    matched_scores = []
+    for disease, required in DISEASE_RULES:
+        matched = sum(1 for symptom in required if symptom in symptoms)
+        score = matched / len(required)
+        matched_scores.append((score, disease, matched))
+
+    matched_scores.sort(reverse=True)
+    best_score, disease, matched = matched_scores[0]
+
+    if best_score < 0.3:
+        return None, "No strong match found. Please consult a healthcare professional for a proper evaluation."
+
+    explanation = f"Matched {matched} common symptom(s) for {disease}."
+    return disease, explanation
+
+
+with st.form("prediction_form"):
+    selected_symptoms = st.multiselect("Choose symptoms", options=SYMPTOM_OPTIONS, help="Pick the symptoms you are feeling")
+    free_text = st.text_area("Or describe symptoms in your own words", placeholder="Example: fever, cough, and body aches")
+    submitted = st.form_submit_button("Predict disease")
+
+if submitted:
+    symptoms = extract_symptoms(selected_symptoms, free_text)
+    disease, explanation = predict_disease(symptoms)
+
+    if disease:
+        st.success(f"Likely condition: {disease}")
+        st.info(f"Reason: {explanation}")
+        st.write("Detected symptoms:", ", ".join(symptoms) if symptoms else "None")
+    else:
+        st.warning(explanation)
+
+st.caption("This app is a simple demo and should not replace medical advice.")
