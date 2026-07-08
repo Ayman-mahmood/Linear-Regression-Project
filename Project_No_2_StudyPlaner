@@ -1,0 +1,41 @@
+import streamlit as st
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
+
+st.set_page_config(page_title="Study Planner AI", page_icon="📚", layout="wide")
+data=pd.read_csv("student_performance.csv")
+X=data[["attendance","previous_marks","study_hours","sleep_hours"]]
+y=data["predicted_marks"]
+model=RandomForestRegressor(n_estimators=100,random_state=42)
+model.fit(X,y)
+
+st.title("📚 Study Planner AI")
+home,predtab,plantab=st.tabs(["🏠 Home","📝 Prediction","📅 Study Plan"])
+
+with home:
+    st.header("Welcome")
+    st.write("Predict exam marks and receive AI study recommendations.")
+
+with predtab:
+    attendance=st.slider("Attendance (%)",0,100,80)
+    previous_marks=st.slider("Previous Marks",0,100,70)
+    study_hours=st.slider("Study Hours",1,10,4)
+    sleep_hours=st.slider("Sleep Hours",4,10,7)
+    if st.button("Predict"):
+        p=round(model.predict([[attendance,previous_marks,study_hours,sleep_hours]])[0],2)
+        grade="A+" if p>=90 else "A" if p>=80 else "B" if p>=70 else "C" if p>=60 else "D" if p>=50 else "F"
+        st.metric("Predicted Marks",f"{p}%")
+        st.metric("Grade",grade)
+        st.progress(int(p))
+        st.subheader("💡 AI Recommendations")
+        if attendance<75: st.write("📌 Improve attendance.")
+        else: st.write("✅ Attendance is good.")
+        if study_hours<3: st.write("📚 Increase study hours.")
+        else: st.write("🌟 Keep your study routine.")
+        if sleep_hours<7: st.write("😴 Sleep 7–8 hours.")
+        else: st.write("💤 Sleep routine is good.")
+        if previous_marks<60: st.write("📝 Revise previous topics.")
+        else: st.write("🎯 Continue solving practice papers.")
+
+with plantab:
+    st.table(pd.DataFrame({"Time":["4-5 PM","5-5:15 PM","5:15-6:15 PM","6:15-7 PM","7-7:30 PM"],"Task":["Math","Break","Science","English","Revision"]}))
