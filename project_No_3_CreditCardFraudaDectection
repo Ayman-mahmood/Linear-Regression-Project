@@ -1,0 +1,85 @@
+import streamlit as st
+import pandas as pd
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+
+st.set_page_config(page_title="Credit Card Fraud Detection", page_icon="💳")
+
+df = pd.read_csv("credit_card_fraud_10k.csv")
+
+df = df.drop("transaction_id", axis=1)
+
+encoder = LabelEncoder()
+df["merchant_category"] = encoder.fit_transform(df["merchant_category"])
+
+X = df.drop("is_fraud", axis=1)
+y = df["is_fraud"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+model = RandomForestClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+st.title("💳 Credit Card Fraud Detection")
+
+amount = st.number_input("Amount", min_value=0.0)
+
+hour = st.number_input("Transaction Hour", 0, 23, 12)
+
+merchant = st.selectbox(
+    "Merchant Category",
+    ["Electronics", "Travel", "Grocery", "Food", "Clothing"]
+)
+
+foreign = st.selectbox(
+    "Foreign Transaction",
+    [0, 1],
+    format_func=lambda x: "No" if x == 0 else "Yes"
+)
+
+location = st.selectbox(
+    "Location Mismatch",
+    [0, 1],
+    format_func=lambda x: "No" if x == 0 else "Yes"
+)
+
+device = st.number_input("Device Trust Score", min_value=0)
+
+velocity = st.number_input("Transactions Last 24 Hours", min_value=0)
+
+age = st.number_input("Cardholder Age", 18, 100, 30)
+
+if st.button("Predict"):
+
+    merchant = encoder.transform([merchant])[0]
+
+    data = pd.DataFrame([{
+        "amount": amount,
+        "transaction_hour": hour,
+        "merchant_category": merchant,
+        "foreign_transaction": foreign,
+        "location_mismatch": location,
+        "device_trust_score": device,
+        "velocity_last_24h": velocity,
+        "cardholder_age": age
+    }])
+
+    prediction = model.predict(data)[0]
+    probability = model.predict_proba(data)[0].max() * 100
+
+    if prediction == 1:
+        st.error(f"❌ Fraudulent Transaction ({probability:.2f}%)")
+    else:
+        st.success(f"✅ Legitimate Transaction ({probability:.2f}%)")
+
+st.markdown("---")
+
+st.write(
+    "This application uses a Random Forest machine learning model to predict whether a credit card transaction is fraudulent based on the entered transaction details."
+)
+
+st.info("This project is for educational purposes only.")
